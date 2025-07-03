@@ -1,0 +1,7 @@
+{
+    "target_devices_map": {
+        "mic 1 name": 1.0,
+        "mic 2 name": 1.0
+    }, 
+    "interval": 0.1
+}
