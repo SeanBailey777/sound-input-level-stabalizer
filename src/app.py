@@ -1,3 +1,4 @@
+import os
 import comtypes
 from pycaw.pycaw import AudioUtilities
 from pycaw.utils import AudioDevice  # Import AudioDevice for type hinting
@@ -66,12 +67,13 @@ def set_device_input_volume(device: AudioDevice, input_level: float):
 
 
 def set_target_devices_input_volume(
-    target_devices: list[AudioDevice], target_devices_map: dict[str, float]
+    target_devices: list[AudioDevice]
 ):
     """
     Set the input volume for the target devices.
     """
     exit_prompt = "...press ^C to exit"
+    target_devices_map, _ = get_config()
     for device in target_devices:
         # Get the target volume for the device
         target_volume = target_devices_map.get(device.FriendlyName, 1.0)
@@ -101,7 +103,6 @@ def set_target_devices_input_volume(
 
 def maintain_target_devices_input_volume(
     target_devices: list[AudioDevice],
-    target_devices_map: dict[str, float],
     interval: float,
 ):
     """
@@ -111,7 +112,7 @@ def maintain_target_devices_input_volume(
     while True:
         try:
             # Set the input volume for the target devices
-            set_target_devices_input_volume(target_devices, target_devices_map)
+            set_target_devices_input_volume(target_devices)
 
         except KeyboardInterrupt:
             print("Exiting...")
@@ -120,23 +121,34 @@ def maintain_target_devices_input_volume(
             print(f"Error in main loop: {e}")
         time.sleep(interval)  # Wait for 100 milliseconds
 
+def find_config() -> str:
+    """
+    Find the config.json file in the current or parent directory.
+    """
+    for path in ("./resource/config.json", "../resource/config.json"):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                print(f"Found config file at: {path}")
+                return path
+        except FileNotFoundError:
+            continue
+    raise FileNotFoundError("config.json not found in ./resource/ or ../resource/")
 
 def get_config() -> tuple[dict[str, float], float] | None:
     """
     Get the target devices name and volume from config.json
     """
-    # open("./resource/config.json", "r", encoding="utf-8"
+    path = os.environ.get("CONFIG_PATH", "./resource/config.json")
     try:
-        with open("./resource/config.json", "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             config = json.load(f)
             target_devices_map = config["target_devices_map"]
             interval = config["interval"]
             return target_devices_map, interval
     except FileNotFoundError as e:
         print(
-            "config.json not found. Please create a config.json file with the target devices and volumes."
+            f"{path} not found, please create an {path} file"
         )
-        raise e
     except Exception as e:
         print(f"Error reading config.json: {e}")
         raise e
@@ -144,6 +156,8 @@ def get_config() -> tuple[dict[str, float], float] | None:
 
 def main():
     # read target device names and volumes from config.json
+    config_path = find_config()
+    os.environ["CONFIG_PATH"] = config_path
     target_devices_map, interval = get_config()
     # Print the target device names and volumes
     print("Target device names and volumes from config:")
@@ -157,7 +171,7 @@ def main():
     for device in target_devices:
         print(f"    {device.FriendlyName}")
 
-    maintain_target_devices_input_volume(target_devices, target_devices_map, interval)
+    maintain_target_devices_input_volume(target_devices, interval)
 
 
 if __name__ == "__main__":
